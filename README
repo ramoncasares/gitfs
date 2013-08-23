@@ -46,17 +46,10 @@ root@PCBox:/usr/local/src/git-1.8.3.4# exit
 Compiling gitfs
 ---------------
 
-Again, before compiling gitfs, we have to
-modify two files: `Makefile` and `main.c`.
+Just do a make:
 
 <pre>
 user@PCBox:~$ cd gitfs
-user@PCBox:~/gitfs$ edit Makefile
-   Change the first line to point to where is git:
-   GITDIR = /usr/local/src/git-1.8.3.4
-user@PCBox:~/gitfs$ edit main.c
-    Change line 51 of main.c:
-    if (get_sha1_1(ref, end - ref, sha1, 0))
 user@PCBox:~/gitfs$ make
 </pre>
 

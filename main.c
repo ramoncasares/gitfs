@@ -48,8 +48,8 @@ static const char *parse(const char *path, unsigned char sha1[20])
         path += 1;
     }
 
-    if (get_sha1_1(ref, end - ref, sha1))
-        return NULL;
+    if (get_sha1_1(ref, end - ref, sha1, 0))
+            return NULL;
 
     return path;
 }
