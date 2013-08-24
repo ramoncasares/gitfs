@@ -91,15 +91,15 @@ How I made the patch
 I made the patch this way.
 
 <pre>
-papa@CoolBox:~/gitfs$ mkdir git-patch
-papa@CoolBox:~/gitfs$ ln -s /usr/local/src/git-1.8.3.4
-papa@CoolBox:~/gitfs$ cp git-1.8.3.4/cache.h git-patch/
-papa@CoolBox:~/gitfs$ cp git-1.8.3.4/sha1_name.c git-patch/
-papa@CoolBox:~/gitfs$ edit git-patch/cache.h
+user@PCBox:~/gitfs$ mkdir git-patch
+user@PCBox:~/gitfs$ ln -s /usr/local/src/git-1.8.3.4
+user@PCBox:~/gitfs$ cp git-1.8.3.4/cache.h git-patch/
+user@PCBox:~/gitfs$ cp git-1.8.3.4/sha1_name.c git-patch/
+user@PCBox:~/gitfs$ edit git-patch/cache.h
    Add line 822 in cache.h
    extern int get_sha1_1(const char *name, int len, unsigned char *sha1, unsigned lookup_flags);
-papa@CoolBox:~/gitfs$ edit git-patch/sha1_name.c
+user@PCBox:~/gitfs$ edit git-patch/sha1_name.c
    Delete word static in sha1_name.c lines 433, 738
    int get_sha1_1(const char *name, int len, unsigned char *sha1, unsigned lookup_flags)
-papa@CoolBox:~/gitfs$ diff -au git-1.8.3.4/ git-patch/ | grep -v '^Only'  > gitfs.patch
+user@PCBox:~/gitfs$ diff -au git-1.8.3.4/ git-patch/ | grep -v '^Only'  > gitfs.patch
 </pre>
