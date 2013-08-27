@@ -270,6 +270,7 @@ static int __gitfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler, 
         filler(buf, "..", NULL, 0);
 
         for_each_tag_ref(show_ref, &ctx);
+        for_each_branch_ref(show_ref, &ctx);
         return 0;
     }
 
