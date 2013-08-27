@@ -27,6 +27,8 @@ struct __gitfs_object {
     void *data;
 };
 
+static unsigned long mountdate;
+
 static const char *parse(const char *path, unsigned char sha1[20])
 {
     const char *ref = "HEAD", *end = ref + 4;
@@ -84,7 +86,7 @@ struct __gitfs_object *__gitfs(const char *path)
     if (!dir)
         return NULL;
 
-    unsigned long date;
+    unsigned long date = mountdate;
     struct object *obj = gitobj(sha1, &date);
     if (!obj)
         return NULL;
@@ -118,7 +120,7 @@ static int __gitfs_getattr(const char *path, struct stat *stbuf)
     if (strcmp(path, "/.refs") == 0) {
         stbuf->st_mode = S_IFDIR | 0755;
         stbuf->st_nlink = 2;
-
+        stbuf->st_atime = stbuf->st_ctime = stbuf->st_mtime = mountdate;
         return 0;
     }
 
@@ -335,6 +337,7 @@ int main(int argc, char *argv[])
 {
     const char *retval = setup_git_directory();
     git_config(git_default_config, NULL);
+    mountdate = (unsigned long) time(NULL);
 
     return fuse_main(argc, argv, &__gitfs_ops, NULL);
 }
