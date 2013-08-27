@@ -23,6 +23,7 @@ struct __gitfs_object {
     unsigned mode;
 
     unsigned long size;
+    unsigned long date;
     void *data;
 };
 
@@ -54,7 +55,7 @@ static const char *parse(const char *path, unsigned char sha1[20])
     return path;
 }
 
-struct object *gitobj(unsigned char sha1[20])
+struct object *gitobj(unsigned char sha1[20], unsigned long *date)
 {
     struct object *obj = parse_object(sha1);
         do {
@@ -62,8 +63,10 @@ struct object *gitobj(unsigned char sha1[20])
                         return NULL;
                 if (obj->type == OBJ_TREE || obj->type == OBJ_BLOB)
                         return obj;
-                else if (obj->type == OBJ_COMMIT)
+                else if (obj->type == OBJ_COMMIT) {
+                        *date = ((struct commit *) obj)->date;
                         obj = &(((struct commit *) obj)->tree->object);
+                }
                 else if (obj->type == OBJ_TAG)
                         obj = ((struct tag *) obj)->tagged;
                 else
@@ -81,7 +84,8 @@ struct __gitfs_object *__gitfs(const char *path)
     if (!dir)
         return NULL;
 
-    struct object *obj = gitobj(sha1);
+    unsigned long date;
+    struct object *obj = gitobj(sha1, &date);
     if (!obj)
         return NULL;
 
@@ -91,7 +95,7 @@ struct __gitfs_object *__gitfs(const char *path)
         if (get_tree_entry(sha1, dir, blob, &mode))
             return NULL;
 
-        obj = gitobj(blob);
+        obj = gitobj(blob, &date);
     }
 
     struct __gitfs_object *gfsobj = malloc(sizeof(struct __gitfs_object));
@@ -99,6 +103,7 @@ struct __gitfs_object *__gitfs(const char *path)
         hashcpy(gfsobj->rev, sha1);
         gfsobj->obj = obj;
         gfsobj->mode = mode;
+        gfsobj->date = date;
     }
 
     return gfsobj;
@@ -124,10 +129,13 @@ static int __gitfs_getattr(const char *path, struct stat *stbuf)
     if (obj->obj->type == OBJ_TREE) {
         stbuf->st_mode = S_IFDIR | 0755;
         stbuf->st_nlink = 2;
+        stbuf->st_atime = stbuf->st_ctime = stbuf->st_mtime = obj->date;
+
     } else if (obj->obj->type == OBJ_BLOB) {
         stbuf->st_mode = S_IFREG | obj->mode;
         stbuf->st_nlink = 1;
 
+        stbuf->st_atime = stbuf->st_ctime = stbuf->st_mtime = obj->date;
         unsigned long size;
         sha1_object_info(obj->obj->sha1, &size);
 
