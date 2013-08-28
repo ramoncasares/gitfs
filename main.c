@@ -97,6 +97,7 @@ struct __gitfs_object *__gitfs(const char *path)
         if (get_tree_entry(sha1, dir, blob, &mode))
             return NULL;
 
+        mode = mode & ~0222;
         obj = gitobj(blob, &date);
     }
 
@@ -118,7 +119,7 @@ static int __gitfs_getattr(const char *path, struct stat *stbuf)
     memset(stbuf, 0, sizeof(struct stat));
 
     if (strcmp(path, "/") == 0) {
-        stbuf->st_mode = S_IFDIR | 0755;
+        stbuf->st_mode = (S_IFDIR | 0755) & ~0222;
         stbuf->st_nlink = 2;
         stbuf->st_atime = stbuf->st_ctime = stbuf->st_mtime = mountdate;
         return 0;
@@ -129,12 +130,12 @@ static int __gitfs_getattr(const char *path, struct stat *stbuf)
         return -ENOENT;
 
     if (obj->obj->type == OBJ_TREE) {
-        stbuf->st_mode = S_IFDIR | 0755;
+        stbuf->st_mode = (S_IFDIR | 0755) & ~0222;
         stbuf->st_nlink = 2;
         stbuf->st_atime = stbuf->st_ctime = stbuf->st_mtime = obj->date;
 
     } else if (obj->obj->type == OBJ_BLOB) {
-        stbuf->st_mode = S_IFREG | obj->mode;
+        stbuf->st_mode = (S_IFREG | obj->mode) & ~0222;
         stbuf->st_nlink = 1;
 
         stbuf->st_atime = stbuf->st_ctime = stbuf->st_mtime = obj->date;
