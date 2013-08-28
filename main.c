@@ -31,14 +31,14 @@ static unsigned long mountdate;
 
 static const char *parse(const char *path, unsigned char sha1[20])
 {
-    const char *ref = "HEAD", *end = ref + 4;
+    const char *ref, *end; ref = end = path;
 
-    if (strncmp(path, "/.refs", 6) == 0) {
-        if (path[6] == '\0')
+    if (strncmp(path, "/", 1) == 0) {
+        if (path[1] == '\0')
             return NULL;
 
-        if (path[6] == '/') {
-            path += 7;
+        else {
+            path += 1;
             ref = path;
 
             end = strchr(ref, '/');
@@ -117,7 +117,7 @@ static int __gitfs_getattr(const char *path, struct stat *stbuf)
 
     memset(stbuf, 0, sizeof(struct stat));
 
-    if (strcmp(path, "/.refs") == 0) {
+    if (strcmp(path, "/") == 0) {
         stbuf->st_mode = S_IFDIR | 0755;
         stbuf->st_nlink = 2;
         stbuf->st_atime = stbuf->st_ctime = stbuf->st_mtime = mountdate;
@@ -275,7 +275,7 @@ static int __gitfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler, 
 {
     struct __gitfs_readdir_ctx ctx = { buf, filler };
 
-    if (strcmp(path, "/.refs") == 0) {
+    if (strcmp(path, "/") == 0) {
         filler(buf, ".", NULL, 0);
         filler(buf, "..", NULL, 0);
 
