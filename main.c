@@ -65,7 +65,7 @@ static const char *parse(const char *path, unsigned char sha1[20])
 
     path = end[0] == '/' ? end + 1 : end;
 
-    if (get_sha1_1(name, j, sha1, 0)) return NULL;
+    if (get_sha1(name, sha1)) return NULL;
 
     return path;
 }

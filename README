@@ -26,8 +26,7 @@ Compiling git
 -------------
 
 Before compiling git, we have
-to install some packets and 
-apply a patch to the git sources.
+to install some packets.
 
 Below is how I did it in a standard Debian Wheezy.
 
@@ -37,7 +36,6 @@ root@PCBox:~# apt-get install libfuse-dev libcurl4-gnutls-dev libexpat1-dev gett
 root@PCBox:~# cd /usr/local/src/
 root@PCBox:/usr/local/src# tar -zxf git-1.8.3.4.tar.gz
 root@PCBox:/usr/local/src# cd git-1.8.3.4/
-root@PCBox:/usr/local/src/git-1.8.3.4# patch -p1 < /home/user/gitfs/gitfs.patch
 root@PCBox:/usr/local/src/git-1.8.3.4# make prefix=/usr/local all
 root@PCBox:/usr/local/src/git-1.8.3.4# exit
 </pre>
@@ -84,24 +82,4 @@ Now in /mnt/fuse/ you have a dir listing with
    cat /mnt/fuse/master~5/Makefile
 .
 user@PCBox:~/gitfs$ ^C
-</pre>
-
-
-How I made the patch
---------------------
-
-I made the patch this way.
-
-<pre>
-user@PCBox:~/gitfs$ mkdir git-patch
-user@PCBox:~/gitfs$ ln -s /usr/local/src/git-1.8.3.4
-user@PCBox:~/gitfs$ cp git-1.8.3.4/cache.h git-patch/
-user@PCBox:~/gitfs$ cp git-1.8.3.4/sha1_name.c git-patch/
-user@PCBox:~/gitfs$ edit git-patch/cache.h
-   Add line 822 in cache.h
-   extern int get_sha1_1(const char *name, int len, unsigned char *sha1, unsigned lookup_flags);
-user@PCBox:~/gitfs$ edit git-patch/sha1_name.c
-   Delete word static in sha1_name.c lines 433, 738
-   int get_sha1_1(const char *name, int len, unsigned char *sha1, unsigned lookup_flags)
-user@PCBox:~/gitfs$ diff -au git-1.8.3.4/ git-patch/ | grep -v '^Only'  > gitfs.patch
 </pre>
