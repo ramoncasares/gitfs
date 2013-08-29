@@ -76,10 +76,12 @@ the just created mount point `/mnt/fuse`, do:
 <pre>
 user@PCBox:~/gitfs$ ./gitfs /mnt/fuse -f
 .
-Now in /mnt/tmp/ you have the tree pointed to by HEAD,
-   and under /mnt/tmp/.refs/ any git object. 
+Now in /mnt/fuse/ you have a dir listing with
+   HEAD, all the branches, and all the tags,
+   and under /mnt/tmp/commitish/ the commit tree,
+   and one entry for each of its parents.
    For example, to see an old version, you could do:
-   cat /mnt/fuse/.refs/master~5/Makefile
+   cat /mnt/fuse/master~5/Makefile
 .
 user@PCBox:~/gitfs$ ^C
 </pre>
