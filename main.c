@@ -24,6 +24,7 @@ struct __gitfs_object {
 
     unsigned long size;
     unsigned long date;
+    unsigned no_parents;
     void *data;
 };
 
@@ -32,32 +33,44 @@ static unsigned long mountdate;
 static const char *parse(const char *path, unsigned char sha1[20])
 {
     const char *ref, *end; ref = end = path;
+    char name[strlen(path)];
 
-    if (strncmp(path, "/", 1) == 0) {
-        if (path[1] == '\0')
-            return NULL;
+    if ( path[0] != '/'  ) return NULL;
+    if ( path[1] == '\0' ) return NULL;
 
-        else {
-            path += 1;
-            ref = path;
-
-            end = strchr(ref, '/');
-            if (end == NULL)
-                end = path + strlen(path);
-
-            path = end[0] == '/' ? end + 1 : end;
-        }
-    } else {
-        return NULL;
+    ref = path + 1;
+    end = strchr(ref, '/');
+    if (end == NULL) end = ref + strlen(ref);
+    else {
+        ref = end;
+        do {
+            if (ref[0] == '\0') { end = ref; break; }
+            if (ref[0] == '/' ) end = ref; else break;
+            ref++;
+            if ( ref[0] != '^' && ref[0] != '~' ) break;
+            ref++;
+            do {
+                if ( ref[0] != '^' && ref[0] != '~' && ref[0] != '0' &&
+                     ref[0] != '1' && ref[0] != '2' && ref[0] != '3' &&
+                     ref[0] != '4' && ref[0] != '5' && ref[0] != '6' &&
+                     ref[0] != '7' && ref[0] != '8' && ref[0] != '9' ) break;
+                ref++;
+            } while (1);
+        } while (1);
     }
 
-    if (get_sha1_1(ref, end - ref, sha1, 0))
-            return NULL;
+    int j = 0;
+    for(; path<end; path++) if(path[0] != '/') name[j++] = path[0];
+    name[j] = '\0';
+
+    path = end[0] == '/' ? end + 1 : end;
+
+    if (get_sha1_1(name, j, sha1, 0)) return NULL;
 
     return path;
 }
 
-struct object *gitobj(unsigned char sha1[20], unsigned long *date)
+struct object *gitobj(unsigned char sha1[20], unsigned long *date, unsigned *no_parents)
 {
     struct object *obj = parse_object(sha1);
         do {
@@ -67,6 +80,7 @@ struct object *gitobj(unsigned char sha1[20], unsigned long *date)
                         return obj;
                 else if (obj->type == OBJ_COMMIT) {
                         *date = ((struct commit *) obj)->date;
+                        *no_parents = commit_list_count(((struct commit *) obj)->parents);
                         obj = &(((struct commit *) obj)->tree->object);
                 }
                 else if (obj->type == OBJ_TAG)
@@ -87,7 +101,8 @@ struct __gitfs_object *__gitfs(const char *path)
         return NULL;
 
     unsigned long date = mountdate;
-    struct object *obj = gitobj(sha1, &date);
+    unsigned no_parents = 0;
+    struct object *obj = gitobj(sha1, &date, &no_parents);
     if (!obj)
         return NULL;
 
@@ -98,8 +113,10 @@ struct __gitfs_object *__gitfs(const char *path)
             return NULL;
 
         mode = mode & ~0222;
-        obj = gitobj(blob, &date);
+        obj = gitobj(blob, &date, &no_parents);
     }
+
+    if (dir[0] != '\0') no_parents = 0;
 
     struct __gitfs_object *gfsobj = malloc(sizeof(struct __gitfs_object));
     if (gfsobj) {
@@ -107,8 +124,8 @@ struct __gitfs_object *__gitfs(const char *path)
         gfsobj->obj = obj;
         gfsobj->mode = mode;
         gfsobj->date = date;
+        gfsobj->no_parents = no_parents;
     }
-
     return gfsobj;
 }
 
@@ -292,6 +309,15 @@ static int __gitfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler, 
 
     filler(buf, ".", NULL, 0);
     filler(buf, "..", NULL, 0);
+
+    unsigned no_parents = obj->no_parents;
+    char np[11];
+    if (no_parents == 1) filler(buf, "^", NULL, 0);
+    else while (no_parents > 0) {
+      sprintf(np, "^%u", no_parents);
+      filler(buf, np, NULL, 0);
+      no_parents--;
+    }
 
     struct tree *tree = (struct tree *) obj->obj;
 
