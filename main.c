@@ -30,10 +30,20 @@ struct __gitfs_object {
 
 static unsigned long mountdate;
 
+static char *replace_char(char *s, char find, char replace) {
+    char *t; t = s;
+    while (*s) {
+        if (*s == find) *s = replace;
+        s++;
+    }
+    s = t;
+    return s;
+}
+
 static const char *parse(const char *path, unsigned char sha1[20])
 {
     const char *ref, *end; ref = end = path;
-    char name[strlen(path)];
+    char name[strlen(path) + 1];
 
     if ( path[0] != '/'  ) return NULL;
     if ( path[1] == '\0' ) return NULL;
@@ -65,7 +75,7 @@ static const char *parse(const char *path, unsigned char sha1[20])
 
     path = end[0] == '/' ? end + 1 : end;
 
-    if (get_sha1(name, sha1)) return NULL;
+    if (get_sha1(replace_char(name,':','/'), sha1)) return NULL;
 
     return path;
 }
@@ -284,7 +294,15 @@ static int show_ref(const char *refname, const unsigned char *sha1, int flag, vo
 {
     struct __gitfs_readdir_ctx *ctx = context;
 
-    (*ctx->filler) (ctx->buf, refname, NULL, 0);
+    char name[strlen(refname) + 1]; int i = 0;
+    const char *p; p = refname;
+    while (*p) {
+        if ( *p == '/' ) name[i++] = ':'; else name[i++] = *p;
+        p++;
+    }
+    name[i] = '\0';
+
+    (*ctx->filler) (ctx->buf, name, NULL, 0);
 
     return 0;
 }
@@ -300,6 +318,7 @@ static int __gitfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler, 
         filler(buf, "HEAD", NULL, 0);
         for_each_tag_ref(show_ref, &ctx);
         for_each_branch_ref(show_ref, &ctx);
+        for_each_remote_ref(show_ref, &ctx);
         return 0;
     }
 
