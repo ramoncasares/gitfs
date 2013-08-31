@@ -130,32 +130,32 @@ user@PCBox:~/git/gitfs$ /usr/local/src/gitfs-0.1/gitfs /mnt/fuse -f &
 user@PCBox:~/git/gitfs$ cd /mnt/fuse
 user@PCBox:/mnt/fuse$ ls -la
 total 4
-dr-xr-xr-x  2 root root    0 ago 30 11:09 .
+dr-xr-xr-x  2 root root    0 ago 31 10:51 .
 drwxr-xr-x 14 root root 4096 ago 29 18:09 ..
-dr-xr-xr-x  2 root root    0 ago 29 20:10 HEAD
-dr-xr-xr-x  2 root root    0 ago 29 20:10 master
-dr-xr-xr-x  2 root root    0 ago 29 20:10 v0.1
-user@PCBox:/mnt/fuse$ cd master
-user@PCBox:/mnt/fuse/master$ ls -la
+dr-xr-xr-x  2 root root    0 ago 31 10:39 HEAD
+dr-xr-xr-x  2 root root    0 ago 31 10:39 master
+dr-xr-xr-x  2 root root    0 ago 31 10:39 v0.1
+user@PCBox:/mnt/fuse$ cd v0.1
+user@PCBox:/mnt/fuse/v0.1$ ls -la
 total 0
-dr-xr-xr-x 2 root root    0 ago 29 18:19 ^
-dr-xr-xr-x 2 root root    0 ago 29 20:10 .
-dr-xr-xr-x 2 root root    0 ago 30 11:09 ..
--r--r--r-- 1 root root 9093 ago 29 20:10 main.c
--r--r--r-- 1 root root  430 ago 29 20:10 Makefile
--r--r--r-- 1 root root 2050 ago 29 20:10 README
-user@PCBox:/mnt/fuse/master$ cd ^
-user@PCBox:/mnt/fuse/master/^$ ls
+dr-xr-xr-x 2 root root    0 ago 29 20:10 ^
+dr-xr-xr-x 2 root root    0 ago 31 10:39 .
+dr-xr-xr-x 2 root root    0 ago 31 10:51 ..
+-r--r--r-- 1 root root 9093 ago 31 10:39 main.c
+-r--r--r-- 1 root root  430 ago 31 10:39 Makefile
+-r--r--r-- 1 root root 5192 ago 31 10:39 README
+user@PCBox:/mnt/fuse/v0.1$ cd ^
+user@PCBox:/mnt/fuse/v0.1/^$ ls
 total 0
-^  gitfs.patch  main.c  Makefile  README
-user@PCBox:/mnt/fuse/master/^$ head -6 README
-Git as a filesystem: gitfs
-==========================
+^  main.c  Makefile  README
+user@PCBox:/mnt/fuse/v0.1/^$ head -6 README
+Making gitfs
+============
 
-After mounting your git repository,
-but before unmounting it :),
-you can browse it in parallel
-user@PCBox:/mnt/fuse/master/^$ cd
+To compile gitfs, first get git and gitfs sources,
+then compile git, and finally compile gitfs.
+
+user@PCBox:/mnt/fuse/v0.1/^$ cd
 user@PCBox:~$ fusermount -u /mnt/fuse
 </pre>
 
