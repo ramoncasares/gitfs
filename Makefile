@@ -1,5 +1,5 @@
 
-GITDIR = /usr/local/src/git-1.8.3.4
+GITDIR = /usr/local/src/git-1.8.4
 
 uname_S := $(shell sh -c 'uname -s 2>/dev/null || echo not')
 
