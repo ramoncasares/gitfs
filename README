@@ -1,55 +1,91 @@
-Making gitfs
-============
+Git as a filesystem: gitfs
+==========================
 
-To compile gitfs, first get git and gitfs sources,
-then compile git, and finally compile gitfs.
+After mounting your git repository,
+but before unmounting it :),
+you can browse it in parallel
+on several terminals, or file browsers,
+going to the mount point, be it `/mnt/fuse`.
+
+Then, in `/mnt/fuse/` you will find a dir listing with
+HEAD, all the branches, and all the tags in the repo.
+And under each `/mnt/fuse/commit-ish/`,
+in adition to the the commit tree,
+the current dir (`.`), and its file system parent (`..`),
+you will also find
+one entry for each of the git parents of the commit,
+as a `^` if it has only one, or
+as `^1`, `^2`, and so on, if it has more than one.
+
+To allow an easy navigation,
+a path as `/mnt/fuse/master/~3/^2/pathto/glob` is
+treated as `/mnt/fuse/master~3^2/pathto/glob`,
+so you can go, for example, from `/mnt/fuse/HEAD` to its git grandparent
+just doing twice `cd ^`, or once `cd ^^` (or `cd ^/^` or `cd ~2` or ...).
+
+This way you can fully navigate the repository
+from any of its local references.
+
+The file system is read-only, and
+the date of any object in a commit tree is the date of the commit.
 
 
-Getting the sources
--------------------
+Preparing the system
+--------------------
 
-Getting the sources is easy if you know where they are.
-We will put git sources in `/usr/local/src` and
-gitfs sources inside `user` home, in `/home/user/gitfs`.
+To make gitfs, first compile git, and then compile gitfs.
+But, before any compiling, we have to install some packets,
+and join `user` to groups `staff` and `fuse`.
+Below is how I did it in a standard Debian Wheezy.
 
 <pre>
 user@PCBox:~$ su -
-root@PCBox:~# cd /usr/local/src/
-root@PCBox:/usr/local/src# wget http://code.google.com/p/git-core/downloads/git-1.8.3.4.tar.gz
-root@PCBox:/usr/local/src# exit
-user@PCBox:~$ cd
-user@PCBox:~$ git clone https://github.com/ramoncasares/gitfs.git
+root@PCBox:~# apt-get install fuse libfuse-dev libcurl4-gnutls-dev libexpat1-dev gettext zlib1g-dev libssl-dev
+root@PCBox:~# adduser user staff
+root@PCBox:~# adduser user fuse
+root@PCBox:~# exit
 </pre>
+
+You may need to reboot, or as `root` do: `chown root:fuse /dev/fuse`.
+Also, you may need to restart the shell session
+for `user` to be on groups `staff` and `fuse`;
+of course, after the reboot, this will also be set.
 
 
 Compiling git
 -------------
 
-Before compiling git, we have
-to install some packets.
-
-Below is how I did it in a standard Debian Wheezy.
+Now we can compile git.
+Just get the sources, and do a make.
 
 <pre>
-user@PCBox:~$ su -
-root@PCBox:~# apt-get install libfuse-dev libcurl4-gnutls-dev libexpat1-dev gettext zlib1g-dev libssl-dev
-root@PCBox:~# cd /usr/local/src/
-root@PCBox:/usr/local/src# tar -zxf git-1.8.3.4.tar.gz
-root@PCBox:/usr/local/src# cd git-1.8.3.4/
-root@PCBox:/usr/local/src/git-1.8.3.4# make prefix=/usr/local all
-root@PCBox:/usr/local/src/git-1.8.3.4# exit
+user@PCBox:~$ cd /usr/local/src/
+user@PCBox:/usr/local/src$ wget https://github.com/git/git/archive/v1.8.4.tar.gz
+user@PCBox:/usr/local/src$ tar -zxf v1.8.4.tar.gz
+user@PCBox:/usr/local/src$ cd git-1.8.4/
+user@PCBox:/usr/local/src/git-1.8.4$ make prefix=/usr/local all
+user@PCBox:/usr/local/src/git-1.8.4$ cd
 </pre>
+
+You may want to install the just compiled git, although it is not needed.
+Should you wanted to install it, please do `make prefix=/usr/local install`.
 
 
 Compiling gitfs
 ---------------
 
-Just do a make:
+Just get the sources, and do a make.
 
 <pre>
-user@PCBox:~$ cd gitfs
-user@PCBox:~/gitfs$ make
+user@PCBox:~$ cd /usr/local/src/
+user@PCBox:/usr/local/src$ wget https://github.com/ramoncasares/gitfs/archive/v0.1.tar.gz
+user@PCBox:/usr/local/src$ tar -zxf v0.1.tar.gz
+user@PCBox:/usr/local/src$ cd gitfs-0.1/
+user@PCBox:/usr/local/src/gitfs-0.1$ make
+user@PCBox:/usr/local/src/gitfs-0.1$ cd
 </pre>
+
+The gitfs executable is: `/usr/local/src/gitfs-0.1/gitfs`.
 
 
 Mounting a git repo as a filesystem
@@ -57,29 +93,79 @@ Mounting a git repo as a filesystem
 
 This is optional, but
 to be able to mount git as an ordinary `user`,
-you need to add yourself to group `fuse`, and
+you need to add yourself to group `fuse` (already done), and
 prepare a mount point.
+We will prepare `/mnt/fuse` to mount fuse filesystems.
 
 <pre>
-root@PCBox:~# adduser user fuse
+user@PCBox:~$ su -
 root@PCBox:~# cd /mnt
 root@PCBox:/mnt# mkdir fuse
 root@PCBox:/mnt# chown root:fuse fuse
 root@PCBox:/mnt# chmod 775 fuse
+root@PCBox:/mnt# exit
 </pre>
 
-To mount the just cloned git repo in
-the just created mount point `/mnt/fuse`, do:
+Now we will clone the gitfs repo from the GitHub.
+This is completelly optional,
+but illustrates how to clone the repo,
+and we will use it to show the use of gitfs.
+We will put the repo in dir `~/git/gitfs/`.
 
 <pre>
-user@PCBox:~/gitfs$ ./gitfs /mnt/fuse -f
-.
-Now in /mnt/fuse/ you have a dir listing with
-   HEAD, all the branches, and all the tags,
-   and under /mnt/tmp/commitish/ the commit tree,
-   and one entry for each of its parents.
-   For example, to see an old version, you could do:
-   cat /mnt/fuse/master~5/Makefile
-.
-user@PCBox:~/gitfs$ ^C
+user@PCBox:~$ mkdir git
+user@PCBox:~$ cd git/
+user@PCBox:~/git$ git clone https://github.com/ramoncasares/gitfs.git
+user@PCBox:~/git$ cd
 </pre>
+
+To mount the just cloned git repo,
+in the just created mount point,
+you have to go to the dir where your repo is,
+and call the gitfs executable from there.
+
+<pre>
+user@PCBox:~$ cd git/gitfs/
+user@PCBox:~/git/gitfs$ /usr/local/src/gitfs-0.1/gitfs /mnt/fuse -f &
+user@PCBox:~/git/gitfs$ cd /mnt/fuse
+user@PCBox:/mnt/fuse$ ls -la
+total 4
+dr-xr-xr-x  2 root root    0 ago 30 11:09 .
+drwxr-xr-x 14 root root 4096 ago 29 18:09 ..
+dr-xr-xr-x  2 root root    0 ago 29 20:10 HEAD
+dr-xr-xr-x  2 root root    0 ago 29 20:10 master
+dr-xr-xr-x  2 root root    0 ago 29 20:10 v0.1
+user@PCBox:/mnt/fuse$ cd master
+user@PCBox:/mnt/fuse/master$ ls -la
+total 0
+dr-xr-xr-x 2 root root    0 ago 29 18:19 ^
+dr-xr-xr-x 2 root root    0 ago 29 20:10 .
+dr-xr-xr-x 2 root root    0 ago 30 11:09 ..
+-r--r--r-- 1 root root 9093 ago 29 20:10 main.c
+-r--r--r-- 1 root root  430 ago 29 20:10 Makefile
+-r--r--r-- 1 root root 2050 ago 29 20:10 README
+user@PCBox:/mnt/fuse/master$ cd ^
+user@PCBox:/mnt/fuse/master/^$ ls
+total 0
+^  gitfs.patch  main.c  Makefile  README
+user@PCBox:/mnt/fuse/master/^$ head -6 README
+Git as a filesystem: gitfs
+==========================
+
+After mounting your git repository,
+but before unmounting it :),
+you can browse it in parallel
+user@PCBox:/mnt/fuse/master/^$ cd
+user@PCBox:~$ fusermount -u /mnt/fuse
+</pre>
+
+
+Aknowledgements
+---------------
+
+This is a fork of
+[wereHamster-gitfs](https://github.com/wereHamster/gitfs),
+by Tomas "wereHamster" Carnecky.
+Branch `original` of Tomas' repo contains
+`gitfs` sources by Mitchell Blank Jr,
+the inspiration for his `gitfs`.
