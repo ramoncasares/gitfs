@@ -78,14 +78,14 @@ Just get the sources, and do a make.
 
 <pre>
 user@PCBox:~$ cd /usr/local/src/
-user@PCBox:/usr/local/src$ wget https://github.com/ramoncasares/gitfs/archive/v0.1.tar.gz
-user@PCBox:/usr/local/src$ tar -zxf v0.1.tar.gz
-user@PCBox:/usr/local/src$ cd gitfs-0.1/
-user@PCBox:/usr/local/src/gitfs-0.1$ make
-user@PCBox:/usr/local/src/gitfs-0.1$ cd
+user@PCBox:/usr/local/src$ wget https://github.com/ramoncasares/gitfs/archive/v0.1.1.tar.gz
+user@PCBox:/usr/local/src$ tar -zxf v0.1.1.tar.gz
+user@PCBox:/usr/local/src$ cd gitfs-0.1.1/
+user@PCBox:/usr/local/src/gitfs-0.1.1$ make
+user@PCBox:/usr/local/src/gitfs-0.1.1$ cd
 </pre>
 
-The gitfs executable is: `/usr/local/src/gitfs-0.1/gitfs`.
+The gitfs executable is: `/usr/local/src/gitfs-0.1.1/gitfs`.
 
 
 Mounting a git repo as a filesystem
@@ -126,21 +126,22 @@ and call the gitfs executable from there.
 
 <pre>
 user@PCBox:~$ cd git/gitfs/
-user@PCBox:~/git/gitfs$ /usr/local/src/gitfs-0.1/gitfs /mnt/fuse -f &
+user@PCBox:~/git/gitfs$ /usr/local/src/gitfs-0.1.1/gitfs /mnt/fuse -f &
 user@PCBox:~/git/gitfs$ cd /mnt/fuse
 user@PCBox:/mnt/fuse$ ls -la
 total 4
-dr-xr-xr-x  2 root root    0 ago 31 10:51 .
+dr-xr-xr-x  2 root root    0 ago 31 11:51 .
 drwxr-xr-x 14 root root 4096 ago 29 18:09 ..
 dr-xr-xr-x  2 root root    0 ago 31 10:39 HEAD
 dr-xr-xr-x  2 root root    0 ago 31 10:39 master
 dr-xr-xr-x  2 root root    0 ago 31 10:39 v0.1
+dr-xr-xr-x  2 root root    0 ago 31 11:39 v0.1.1
 user@PCBox:/mnt/fuse$ cd v0.1
 user@PCBox:/mnt/fuse/v0.1$ ls -la
 total 0
 dr-xr-xr-x 2 root root    0 ago 29 20:10 ^
 dr-xr-xr-x 2 root root    0 ago 31 10:39 .
-dr-xr-xr-x 2 root root    0 ago 31 10:51 ..
+dr-xr-xr-x 2 root root    0 ago 31 11:51 ..
 -r--r--r-- 1 root root 9093 ago 31 10:39 main.c
 -r--r--r-- 1 root root  430 ago 31 10:39 Makefile
 -r--r--r-- 1 root root 5192 ago 31 10:39 README
