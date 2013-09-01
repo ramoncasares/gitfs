@@ -30,16 +30,6 @@ struct __gitfs_object {
 
 static unsigned long mountdate;
 
-static char *replace_char(char *s, char find, char replace) {
-    char *t; t = s;
-    while (*s) {
-        if (*s == find) *s = replace;
-        s++;
-    }
-    s = t;
-    return s;
-}
-
 static const char *parse(const char *path, unsigned char sha1[20])
 {
     const char *ref, *end; ref = end = path;
@@ -70,12 +60,14 @@ static const char *parse(const char *path, unsigned char sha1[20])
     }
 
     int j = 0;
-    for(; path<end; path++) if(path[0] != '/') name[j++] = path[0];
+    for(; path<end; path++)
+        if(path[0] != '/')
+           if(path[0] == ':') name[j++] = '/'; else name[j++] = path[0];
     name[j] = '\0';
 
     path = end[0] == '/' ? end + 1 : end;
 
-    if (get_sha1(replace_char(name,':','/'), sha1)) return NULL;
+    if (get_sha1(name, sha1)) return NULL;
 
     return path;
 }
