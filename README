@@ -27,11 +27,19 @@ Also, in the `commit-ish` section of path `/mnt/fuse/commit-ish/pathto/glob`,
 every `:` char is converted to char `/` when interfacing with git.
 So path `/mnt/fuse/origin:master/` refers to git `origin/master` remote ref.
 
+In summary, a `commit-ish` is any
+`(refs :)* name (/ [~^] [~^0-9]*)*`,
+and is treated as
+`(refs /)* name ([~^] [~^0-9]*)*`.
 This way you can fully navigate the repository
 from any of its references.
 
-The file system is read-only, and
+The gitfs filesystem is read-only, and
 the date of any object in a commit tree is the date of the commit.
+
+If you need a writable filesystem, please use a
+[unionfs](http://en.wikipedia.org/wiki/UnionFS)
+filesystem on top of the gitfs mount point.
 
 
 Preparing the system
