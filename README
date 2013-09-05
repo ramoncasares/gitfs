@@ -34,6 +34,11 @@ and is treated as
 This way you can fully navigate the repository
 from any of its references.
 
+The gitfs filesystem reports two extended attributes:
+
+- `user.sha1`:   the sha1 of the tree or blob object;
+- `user.commit`: the sha1 of the commit where the tree or blob object is.
+
 The gitfs filesystem is read-only, and
 the date of any object in a commit tree is the date of the commit.
 
@@ -52,14 +57,15 @@ Below is how I did it in a standard Debian Wheezy.
 
 <pre>
 user@PCBox:~$ su -
-root@PCBox:~# apt-get install fuse libfuse-dev libcurl4-gnutls-dev libexpat1-dev gettext zlib1g-dev libssl-dev
+root@PCBox:~# apt-get install fuse libfuse-dev attr libattr1-dev \
+                              libcurl4-gnutls-dev libexpat1-dev gettext zlib1g-dev libssl-dev
 root@PCBox:~# adduser user staff
 root@PCBox:~# adduser user fuse
 root@PCBox:~# exit
 </pre>
 
 You may need to reboot, or as `root` do: `chown root:fuse /dev/fuse`.
-Also, you may need to restart the shell session
+Also, you may need to restart the shell session, doing `su user`,
 for `user` to be on groups `staff` and `fuse`;
 of course, after the reboot, this will also be set.
 
@@ -90,14 +96,14 @@ Just get the sources, and do a make.
 
 <pre>
 user@PCBox:~$ cd /usr/local/src/
-user@PCBox:/usr/local/src$ wget https://github.com/ramoncasares/gitfs/archive/v0.1.1.tar.gz
-user@PCBox:/usr/local/src$ tar -zxf v0.1.1.tar.gz
-user@PCBox:/usr/local/src$ cd gitfs-0.1.1/
-user@PCBox:/usr/local/src/gitfs-0.1.1$ make
-user@PCBox:/usr/local/src/gitfs-0.1.1$ cd
+user@PCBox:/usr/local/src$ wget https://github.com/ramoncasares/gitfs/archive/v0.2.tar.gz
+user@PCBox:/usr/local/src$ tar -zxf v0.2.tar.gz
+user@PCBox:/usr/local/src$ cd gitfs-0.2/
+user@PCBox:/usr/local/src/gitfs-0.2$ make
+user@PCBox:/usr/local/src/gitfs-0.2$ cd
 </pre>
 
-The gitfs executable is: `/usr/local/src/gitfs-0.1.1/gitfs`.
+The gitfs executable is: `/usr/local/src/gitfs-0.2/gitfs`.
 
 
 Mounting a git repo as a filesystem
@@ -136,27 +142,37 @@ in the just created mount point,
 you have to go to the dir where your repo is,
 and call the gitfs executable from there.
 
+Example session
+---------------
+
 <pre>
 user@PCBox:~$ cd git/gitfs/
-user@PCBox:~/git/gitfs$ /usr/local/src/gitfs-0.1.1/gitfs /mnt/fuse -f &
+user@PCBox:~/git/gitfs$ /usr/local/src/gitfs-0.2/gitfs /mnt/fuse -f &
 user@PCBox:~/git/gitfs$ cd /mnt/fuse
 user@PCBox:/mnt/fuse$ ls -la
 total 4
-dr-xr-xr-x  2 root root    0 ago 31 11:51 .
-drwxr-xr-x 14 root root 4096 ago 29 18:09 ..
-dr-xr-xr-x  2 root root    0 ago 31 10:39 HEAD
-dr-xr-xr-x  2 root root    0 ago 31 10:39 master
-dr-xr-xr-x  2 root root    0 ago 31 10:39 v0.1
-dr-xr-xr-x  2 root root    0 ago 31 11:39 v0.1.1
+dr-xr-xr-x+  2 root root    0 sep  5 19:48 .
+drwxr-xr-x  14 root root 4096 ago 29 18:09 ..
+dr-xr-xr-x+  2 root root    0 sep  1 08:25 github:HEAD
+dr-xr-xr-x+  2 root root    0 sep  1 08:25 github:master
+dr-xr-xr-x+  2 root root    0 jul 20  2009 github:original
+dr-xr-xr-x+  2 root root    0 sep  4  2009 github:temp
+dr-xr-xr-x+  2 root root    0 sep  5 19:38 HEAD
+dr-xr-xr-x+  2 root root    0 sep  5 19:38 master
+dr-xr-xr-x+  2 root root    0 sep  1 08:25 origin:master
+dr-xr-xr-x+  2 root root    0 sep  1 08:25 qratos:master
+dr-xr-xr-x+  2 root root    0 ago 31 10:39 v0.1
+dr-xr-xr-x+  2 root root    0 ago 31 11:39 v0.1.1
+dr-xr-xr-x+  2 root root    0 sep  5 20:45 v0.2
 user@PCBox:/mnt/fuse$ cd v0.1
 user@PCBox:/mnt/fuse/v0.1$ ls -la
 total 0
-dr-xr-xr-x 2 root root    0 ago 29 20:10 ^
-dr-xr-xr-x 2 root root    0 ago 31 10:39 .
-dr-xr-xr-x 2 root root    0 ago 31 11:51 ..
--r--r--r-- 1 root root 9093 ago 31 10:39 main.c
--r--r--r-- 1 root root  430 ago 31 10:39 Makefile
--r--r--r-- 1 root root 5192 ago 31 10:39 README
+dr-xr-xr-x+ 2 root root    0 ago 29 20:10 ^
+dr-xr-xr-x+ 2 root root    0 ago 31 10:39 .
+dr-xr-xr-x+ 2 root root    0 sep  5 19:48 ..
+-r--r--r--+ 1 root root 9093 ago 31 10:39 main.c
+-r--r--r--+ 1 root root  430 ago 31 10:39 Makefile
+-r--r--r--+ 1 root root 5192 ago 31 10:39 README
 user@PCBox:/mnt/fuse/v0.1$ cd ^
 user@PCBox:/mnt/fuse/v0.1/^$ ls
 total 0
@@ -167,6 +183,16 @@ Making gitfs
 
 To compile gitfs, first get git and gitfs sources,
 then compile git, and finally compile gitfs.
+
+user@PCBox:/mnt/fuse/v0.1/^$ getfattr -d README
+# file: README
+user.commit="d45be49c223d47c4da8ba7f487b3e7c6ccd8298f"
+user.sha1="53e4aff7e0b447202fc3b8c5bd9dbbbfe6c44af3"
+
+user@PCBox:/mnt/fuse/v0.1/^$ getfattr -d .
+# file: .
+user.commit="d45be49c223d47c4da8ba7f487b3e7c6ccd8298f"
+user.sha1="73f8c00cd7d5acc7797be8a127f5be935fbe3728"
 
 user@PCBox:/mnt/fuse/v0.1/^$ cd
 user@PCBox:~$ fusermount -u /mnt/fuse
@@ -181,4 +207,4 @@ This is a fork of
 by Tomas "wereHamster" Carnecky.
 Branch `original` of Tomas' repo contains
 `gitfs` sources by Mitchell Blank Jr,
-the inspiration for his `gitfs`.
+the inspiration for our `gitfs`.
