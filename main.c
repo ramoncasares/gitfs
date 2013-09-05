@@ -16,15 +16,19 @@
 #include <string.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <attr/xattr.h>
+
 
 struct __gitfs_object {
     unsigned char rev[20];
     struct object *obj;
     unsigned mode;
-
     unsigned long size;
+
+    unsigned char commit[20];
     unsigned long date;
     unsigned no_parents;
+
     void *data;
 };
 
@@ -72,7 +76,7 @@ static const char *parse(const char *path, unsigned char sha1[20])
     return path;
 }
 
-struct object *gitobj(unsigned char sha1[20], unsigned long *date, unsigned *no_parents)
+struct object *gitobj(unsigned char sha1[20], unsigned long *date, unsigned *no_parents, unsigned char commit[20])
 {
     struct object *obj = parse_object(sha1);
         do {
@@ -83,6 +87,7 @@ struct object *gitobj(unsigned char sha1[20], unsigned long *date, unsigned *no_
                 else if (obj->type == OBJ_COMMIT) {
                         *date = ((struct commit *) obj)->date;
                         *no_parents = commit_list_count(((struct commit *) obj)->parents);
+                        int i; for(i=0; i<20; i++) commit[i] = sha1[i];
                         obj = &(((struct commit *) obj)->tree->object);
                 }
                 else if (obj->type == OBJ_TAG)
@@ -103,8 +108,9 @@ struct __gitfs_object *__gitfs(const char *path)
         return NULL;
 
     unsigned long date = mountdate;
+    unsigned char commit[20];
     unsigned no_parents = 0;
-    struct object *obj = gitobj(sha1, &date, &no_parents);
+    struct object *obj = gitobj(sha1, &date, &no_parents, commit);
     if (!obj)
         return NULL;
 
@@ -115,7 +121,7 @@ struct __gitfs_object *__gitfs(const char *path)
             return NULL;
 
         mode = mode & ~0222;
-        obj = gitobj(blob, &date, &no_parents);
+        obj = gitobj(blob, &date, &no_parents, commit);
     }
 
     if (dir[0] != '\0') no_parents = 0;
@@ -126,6 +132,7 @@ struct __gitfs_object *__gitfs(const char *path)
         gfsobj->obj = obj;
         gfsobj->mode = mode;
         gfsobj->date = date;
+        int i; for(i=0; i<20; i++) gfsobj->commit[i] = commit[i];
         gfsobj->no_parents = no_parents;
     }
     return gfsobj;
@@ -248,17 +255,39 @@ static int __gitfs_release(const char *path, struct fuse_file_info *fi)
     return 0;
 }
 
+
+static int __gitfs_listxattr(const char *path, char *list, size_t size)
+{
+    int len = 22;
+    if (size == 0) return len;
+
+    if (strcmp(path, "/") == 0) {
+        list[0] = '\0';
+        return 1;
+    } else {
+        if (size < len) return -ERANGE;
+        memcpy(list, "user.sha1\0user.commit", len);
+        return len;
+    }
+}
+
 static int __gitfs_getxattr(const char *path, const char *name, char *value, size_t size)
 {
+    unsigned long len = 41;
+    if (size == 0) return len;
+
     struct __gitfs_object *obj = __gitfs(path);
-    if (!obj)
-        return -ENOENT;
+    if (!obj) return -ENOENT;
 
-    if (strcmp(name, "__gitfs.hash") == 0) {
-        strncpy(value, sha1_to_hex(obj->obj->sha1), size);
-    }
-
-    return 0;
+    if (strcmp(name, "user.sha1") == 0) {
+        if (len > size) return -ERANGE;
+        strncpy(value, sha1_to_hex(obj->obj->sha1), len);
+        return len;
+    } else if (strcmp(name, "user.commit") == 0) {
+        if (len > size) return -ERANGE;
+        strncpy(value, sha1_to_hex(obj->commit), len);
+        return len;
+    } else return -ENOATTR;
 }
 
 static int __gitfs_opendir(const char *path, struct fuse_file_info *fi)
@@ -365,7 +394,8 @@ static struct fuse_operations __gitfs_ops = {
     .open       = __gitfs_open,
     .read       = __gitfs_read,
     .release    = __gitfs_release,
-//    .getxattr   = __gitfs_getxattr,
+    .getxattr   = __gitfs_getxattr,
+    .listxattr  = __gitfs_listxattr,
 //    .opendir    = __gitfs_opendir,
     .readdir    = __gitfs_readdir,
 //    .releasedir = __gitfs_releasedir,
