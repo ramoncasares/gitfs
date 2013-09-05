@@ -405,9 +405,11 @@ static struct fuse_operations __gitfs_ops = {
 
 int main(int argc, char *argv[])
 {
+    struct fuse_args args = FUSE_ARGS_INIT(argc, argv);
+
     const char *retval = setup_git_directory();
     git_config(git_default_config, NULL);
     mountdate = (unsigned long) time(NULL);
 
-    return fuse_main(argc, argv, &__gitfs_ops, NULL);
+    return fuse_main(args.argc, args.argv, &__gitfs_ops, NULL);
 }
