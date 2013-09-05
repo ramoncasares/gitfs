@@ -276,6 +276,8 @@ static int __gitfs_getxattr(const char *path, const char *name, char *value, siz
     unsigned long len = 41;
     if (size == 0) return len;
 
+    if (strcmp(path, "/") == 0) return 0;
+
     struct __gitfs_object *obj = __gitfs(path);
     if (!obj) return -ENOENT;
 
