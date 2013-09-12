@@ -26,13 +26,14 @@ struct __gitfs_object {
     unsigned long size;
 
     unsigned char commit[20];
-    unsigned long date;
+    time_t date;
     unsigned no_parents;
 
     void *data;
 };
 
-static unsigned long mountdate;
+static time_t mountdate;
+static uid_t uid; static gid_t gid;
 
 static const char *parse(const char *path, unsigned char sha1[20])
 {
@@ -87,7 +88,7 @@ struct object *gitobj(unsigned char sha1[20], unsigned long *date, unsigned *no_
                 else if (obj->type == OBJ_COMMIT) {
                         *date = ((struct commit *) obj)->date;
                         *no_parents = commit_list_count(((struct commit *) obj)->parents);
-                        int i; for(i=0; i<20; i++) commit[i] = sha1[i];
+                        int i; for(i=0; i<20; i++) commit[i] = obj->sha1[i];
                         obj = &(((struct commit *) obj)->tree->object);
                 }
                 else if (obj->type == OBJ_TAG)
@@ -120,8 +121,7 @@ struct __gitfs_object *__gitfs(const char *path)
         if (get_tree_entry(sha1, dir, blob, &mode))
             return NULL;
 
-        mode = mode & ~0222;
-        obj = gitobj(blob, &date, &no_parents, commit);
+        obj = parse_object(blob);
     }
 
     if (dir[0] != '\0') no_parents = 0;
@@ -130,7 +130,7 @@ struct __gitfs_object *__gitfs(const char *path)
     if (gfsobj) {
         hashcpy(gfsobj->rev, sha1);
         gfsobj->obj = obj;
-        gfsobj->mode = mode;
+        gfsobj->mode = mode & ~0222;
         gfsobj->date = date;
         int i; for(i=0; i<20; i++) gfsobj->commit[i] = commit[i];
         gfsobj->no_parents = no_parents;
@@ -148,6 +148,7 @@ static int __gitfs_getattr(const char *path, struct stat *stbuf)
         stbuf->st_mode = S_IFDIR | 0555;
         stbuf->st_nlink = 2;
         stbuf->st_atime = stbuf->st_ctime = stbuf->st_mtime = mountdate;
+        stbuf->st_uid = uid; stbuf->st_gid = gid;
         return 0;
     }
 
@@ -159,12 +160,14 @@ static int __gitfs_getattr(const char *path, struct stat *stbuf)
         stbuf->st_mode = S_IFDIR | 0555;
         stbuf->st_nlink = 2;
         stbuf->st_atime = stbuf->st_ctime = stbuf->st_mtime = obj->date;
+        stbuf->st_uid = uid; stbuf->st_gid = gid;
 
     } else if (obj->obj->type == OBJ_BLOB) {
         stbuf->st_mode = obj->mode & ~0222;
         stbuf->st_nlink = 1;
 
         stbuf->st_atime = stbuf->st_ctime = stbuf->st_mtime = obj->date;
+        stbuf->st_uid = uid; stbuf->st_gid = gid;
         unsigned long size;
         sha1_object_info(obj->obj->sha1, &size);
 
@@ -411,7 +414,8 @@ int main(int argc, char *argv[])
 
     const char *retval = setup_git_directory();
     git_config(git_default_config, NULL);
-    mountdate = (unsigned long) time(NULL);
+    mountdate = time(NULL);
+    uid = getuid(); gid = getgid();
 
     return fuse_main(args.argc, args.argv, &__gitfs_ops, NULL);
 }
