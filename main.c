@@ -91,8 +91,10 @@ struct object *gitobj(unsigned char sha1[20], unsigned long *date, unsigned *no_
                         int i; for(i=0; i<20; i++) commit[i] = obj->sha1[i];
                         obj = &(((struct commit *) obj)->tree->object);
                 }
-                else if (obj->type == OBJ_TAG)
+                else if (obj->type == OBJ_TAG) {
+                        *date = ((struct tag *) obj)->date;
                         obj = ((struct tag *) obj)->tagged;
+                }
                 else
                         return NULL;
 
