@@ -263,7 +263,11 @@ static int __gitfs_release(const char *path, struct fuse_file_info *fi)
 
 static int __gitfs_listxattr(const char *path, char *list, size_t size)
 {
-    int len = 22;
+    static char *attr[] = { "user.sha1" , "user.commit" };
+    int no_attrs = sizeof(attr) / sizeof(*attr);
+    int len = 0;
+    int i; for(i=0; i<no_attrs; i++) len = len + strlen(attr[i]) + 1;
+
     if (size == 0) return len;
 
     if (strcmp(path, "/") == 0) {
@@ -271,7 +275,11 @@ static int __gitfs_listxattr(const char *path, char *list, size_t size)
         return 1;
     } else {
         if (size < len) return -ERANGE;
-        memcpy(list, "user.sha1\0user.commit", len);
+        char *s = list; char *p;
+        for(i=0; i<no_attrs; i++) {
+            p = attr[i];
+            while(*s++ = *p++) ;
+        }
         return len;
     }
 }
