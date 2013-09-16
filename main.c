@@ -44,6 +44,13 @@ static const char *parse(const char *path, unsigned char sha1[20])
     if ( path[0] != '/'  ) return NULL;
     if ( path[1] == '\0' ) return NULL;
 
+    if ( strncmp(path,"/.commit",8) == 0 ) path = path + 8;
+    if ( strncmp(path,"/_",2) == 0 ) {
+        ref = path + 1;
+        path = strchr(ref, '/');
+        if (path == NULL) path = ref + strlen(ref);
+    }
+
     ref = path + 1;
     end = strchr(ref, '/');
     if (end == NULL) end = ref + strlen(ref);
@@ -147,7 +154,8 @@ static int __gitfs_getattr(const char *path, struct stat *stbuf)
 
     memset(stbuf, 0, sizeof(struct stat));
 
-    if (strcmp(path, "/") == 0) {
+    if ( strcmp(path, "/") == 0 || strcmp(path, "/.commit") == 0 ||
+        ( strncmp(path, "/_", 2) == 0 && strrchr(path, '/') == path ) ) {
         stbuf->st_mode = S_IFDIR | 0555;
         stbuf->st_nlink = 2;
         stbuf->st_atime = stbuf->st_ctime = stbuf->st_mtime = mountdate;
@@ -271,7 +279,8 @@ static int __gitfs_listxattr(const char *path, char *list, size_t size)
 
     if (size == 0) return len;
 
-    if (strcmp(path, "/") == 0) {
+    if ( strcmp(path, "/") == 0 || strcmp(path, "/.commit") == 0 ||
+        (strncmp(path, "/_", 2) == 0 && strrchr(path, '/') == path) ) {
         list[0] = '\0';
         return 1;
     } else {
@@ -290,7 +299,8 @@ static int __gitfs_getxattr(const char *path, const char *name, char *value, siz
     unsigned long len = 41;
     if (size == 0) return len;
 
-    if (strcmp(path, "/") == 0) return 0;
+    if (strcmp(path, "/") == 0 || strcmp(path, "/.commit") == 0) return 0;
+    if (strncmp(path, "/_", 2) == 0 && strrchr(path, '/') == path) return 0;
 
     struct __gitfs_object *obj = __gitfs(path);
     if (!obj) return -ENOENT;
@@ -331,8 +341,8 @@ static int show_ref(const char *refname, const unsigned char *sha1, int flag, vo
 {
     struct __gitfs_readdir_ctx *ctx = context;
 
-    char name[strlen(refname) + 1]; int i = 0;
-    const char *p; p = refname;
+    char name[strlen(refname) + 2]; name[0] = '_';
+    const char *p; p = refname; int i = 1;
     while (*p) {
         if ( *p == '/' ) name[i++] = ':'; else name[i++] = *p;
         p++;
@@ -340,6 +350,7 @@ static int show_ref(const char *refname, const unsigned char *sha1, int flag, vo
     name[i] = '\0';
 
     (*ctx->filler) (ctx->buf, name, NULL, 0);
+    p = name; p++; (*ctx->filler) (ctx->buf, p, NULL, 0);
 
     return 0;
 }
@@ -353,13 +364,28 @@ static int show_commit(struct commit *cm, void *context)
     return 0;
 }
 
-static void rev_list_all(struct rev_info *revs)
+static int rev_list_all(struct rev_info *revs, const char* difrev)
 {
     init_revisions(revs, prefix);
-    const char *args[] = { "--all", "HEAD" };
-    setup_revisions(2, args, revs, NULL);
-    reset_revision_walk();
-    prepare_revision_walk(revs);
+    const char *args[2]; args[0] = "--all";
+
+    char name[strlen(difrev) + 1];  int i = 0;
+    const char *p; p = difrev;
+    while (*p) {
+        if ( *p == ':' ) name[i++] = '/'; else name[i++] = *p;
+        p++;
+    }
+    name[i] = '\0';
+
+    args[1] = name;
+
+    if ( handle_revision_arg(name,revs,0,0) == 0 ) {
+        setup_revisions(2, args, revs, NULL);
+        reset_revision_walk();
+        prepare_revision_walk(revs);
+        return 0;
+    }
+    else return -1;
 }
 
 static int __gitfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info *fi)
@@ -369,17 +395,37 @@ static int __gitfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler, 
     if (strcmp(path, "/") == 0) {
         filler(buf, ".", NULL, 0);
         filler(buf, "..", NULL, 0);
+        filler(buf, ".commit", NULL, 0);
 
         filler(buf, "HEAD", NULL, 0);
+        filler(buf, "_HEAD", NULL, 0);
         // for_each_ref(show_ref, &ctx);
         for_each_tag_ref(show_ref, &ctx);
         for_each_branch_ref(show_ref, &ctx);
         for_each_remote_ref(show_ref, &ctx);
         for_each_replace_ref(show_ref, &ctx);
 
+        return 0;
+    }
+
+    if (strcmp(path, "/.commit") == 0) {
+        filler(buf, ".", NULL, 0);
+        filler(buf, "..", NULL, 0);
+
         struct rev_info revs;
-        rev_list_all(&revs);
+        rev_list_all(&revs, "HEAD");
         traverse_commit_list(&revs, show_commit, NULL, &ctx);
+
+        return 0;
+    }
+
+    if (strncmp(path, "/_", 2) == 0 && strrchr(path, '/') == path) {
+        filler(buf, ".", NULL, 0);
+        filler(buf, "..", NULL, 0);
+
+        struct rev_info revs;
+        if ( rev_list_all(&revs, path+2) == 0 )
+            traverse_commit_list(&revs, show_commit, NULL, &ctx);
 
         return 0;
     }
