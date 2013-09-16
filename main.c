@@ -32,6 +32,7 @@ struct __gitfs_object {
     void *data;
 };
 
+const char *prefix;
 static time_t mountdate;
 static uid_t uid; static gid_t gid;
 
@@ -343,6 +344,24 @@ static int show_ref(const char *refname, const unsigned char *sha1, int flag, vo
     return 0;
 }
 
+static int show_commit(struct commit *cm, void *context)
+{
+    struct __gitfs_readdir_ctx *ctx = context;
+
+    (*ctx->filler) (ctx->buf, sha1_to_hex(cm->object.sha1), NULL, 0);
+
+    return 0;
+}
+
+static void rev_list_all(struct rev_info *revs)
+{
+    init_revisions(revs, prefix);
+    const char *args[] = { "--all", "HEAD" };
+    setup_revisions(2, args, revs, NULL);
+    reset_revision_walk();
+    prepare_revision_walk(revs);
+}
+
 static int __gitfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info *fi)
 {
     struct __gitfs_readdir_ctx ctx = { buf, filler };
@@ -357,6 +376,11 @@ static int __gitfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler, 
         for_each_branch_ref(show_ref, &ctx);
         for_each_remote_ref(show_ref, &ctx);
         for_each_replace_ref(show_ref, &ctx);
+
+        struct rev_info revs;
+        rev_list_all(&revs);
+        traverse_commit_list(&revs, show_commit, NULL, &ctx);
+
         return 0;
     }
 
@@ -422,7 +446,7 @@ int main(int argc, char *argv[])
 {
     struct fuse_args args = FUSE_ARGS_INIT(argc, argv);
 
-    const char *retval = setup_git_directory();
+    prefix = setup_git_directory();
     git_config(git_default_config, NULL);
     mountdate = time(NULL);
     uid = getuid(); gid = getgid();
