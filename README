@@ -179,21 +179,21 @@ user@PCBox:~/git/gitfs$ /usr/local/src/gitfs-0.3/gitfs /mnt/fuse -f &
 user@PCBox:~/git/gitfs$ cd /mnt/fuse
 user@PCBox:/mnt/fuse$ ls -la
 total 4
-dr-xr-xr-x+  2 papa papa    0 sep 22 08:58 _
-dr-xr-xr-x+  2 papa papa    0 sep 22 08:58 .
+dr-xr-xr-x+  2 user user    0 sep 22 08:58 _
+dr-xr-xr-x+  2 user user    0 sep 22 08:58 .
 drwxr-xr-x  15 root root 4096 sep  8 12:25 ..
-dr-xr-xr-x+  2 papa papa    0 sep 13 12:40 github:HEAD
-dr-xr-xr-x+  2 papa papa    0 sep 13 12:40 github:master
-dr-xr-xr-x+  2 papa papa    0 jul 20  2009 github:original
-dr-xr-xr-x+  2 papa papa    0 sep  4  2009 github:temp
-dr-xr-xr-x+  2 papa papa    0 sep 20 14:02 HEAD
-dr-xr-xr-x+  2 papa papa    0 sep 20 14:02 master
-dr-xr-xr-x+  2 papa papa    0 sep 13 12:40 origin:master
-dr-xr-xr-x+  2 papa papa    0 sep 13 12:40 qratos:master
-dr-xr-xr-x+  2 papa papa    0 ago 31 10:39 v0.1
-dr-xr-xr-x+  2 papa papa    0 ago 31 11:39 v0.1.1
-dr-xr-xr-x+  2 papa papa    0 sep  5 20:44 v0.2
-dr-xr-xr-x+  2 user user    0 sep 22 19:15 v0.3
+dr-xr-xr-x+  2 user user    0 sep 13 12:40 github:HEAD
+dr-xr-xr-x+  2 user user    0 sep 13 12:40 github:master
+dr-xr-xr-x+  2 user user    0 jul 20  2009 github:original
+dr-xr-xr-x+  2 user user    0 sep  4  2009 github:temp
+dr-xr-xr-x+  2 user user    0 sep 20 14:02 HEAD
+dr-xr-xr-x+  2 user user    0 sep 20 14:02 master
+dr-xr-xr-x+  2 user user    0 sep 13 12:40 origin:master
+dr-xr-xr-x+  2 user user    0 sep 13 12:40 qratos:master
+dr-xr-xr-x+  2 user user    0 ago 31 10:39 v0.1
+dr-xr-xr-x+  2 user user    0 ago 31 11:39 v0.1.1
+dr-xr-xr-x+  2 user user    0 sep  5 20:44 v0.2
+dr-xr-xr-x+  2 user user    0 sep 22 10:05 v0.3
 user@PCBox:/mnt/fuse$ ls -lat _v0.1..v0.2
 total 0
 dr-xr-xr-x+ 2 user user 0 sep 22 08:58 .
