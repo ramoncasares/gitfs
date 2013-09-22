@@ -36,6 +36,13 @@ const char *prefix;
 static time_t mountdate;
 static uid_t uid; static gid_t gid;
 
+static int levels(const char *path)
+{
+    const char *p = path; int n = 0;
+    while ( p = strchr(p,'/') ) { p++; n++; }
+    return n;
+}
+
 static const char *parse(const char *path, unsigned char sha1[20])
 {
     const char *ref, *end; ref = end = path;
@@ -152,9 +159,9 @@ static int __gitfs_getattr(const char *path, struct stat *stbuf)
     int res = 0;
 
     memset(stbuf, 0, sizeof(struct stat));
+    struct __gitfs_object *obj;
 
-    if ( strcmp(path, "/") == 0 ||
-        ( strncmp(path, "/_", 2) == 0 && strrchr(path, '/') == path ) ) {
+    if ( strcmp(path, "/") == 0 ) {
         stbuf->st_mode = S_IFDIR | 0555;
         stbuf->st_nlink = 2;
         stbuf->st_atime = stbuf->st_ctime = stbuf->st_mtime = mountdate;
@@ -162,7 +169,28 @@ static int __gitfs_getattr(const char *path, struct stat *stbuf)
         return 0;
     }
 
-    struct __gitfs_object *obj = __gitfs(path);
+    if ( strncmp(path, "/_", 2) == 0 ) {
+        const char *ref = strrchr(path, '/');
+        if ( ref == path ) {
+            stbuf->st_mode = S_IFDIR | 0555;
+            stbuf->st_nlink = 2;
+            stbuf->st_atime = stbuf->st_ctime = stbuf->st_mtime = mountdate;
+            stbuf->st_uid = uid; stbuf->st_gid = gid;
+            return 0;
+        } else {
+            size_t size = 0; if (*(path+2) == '/') size++;
+            obj = __gitfs(ref); if (obj == NULL) return -ENOENT;
+            stbuf->st_mode = S_IFLNK | 0777;
+            stbuf->st_nlink = 1;
+            stbuf->st_atime = stbuf->st_ctime = stbuf->st_mtime = obj->date;
+            stbuf->st_uid = uid; stbuf->st_gid = gid;
+            stbuf->st_size = 3 * levels(path+2) + strlen(ref) - 1 + size;
+            free(obj);
+            return 0;
+        }
+    }
+
+    obj = __gitfs(path);
     if (obj == NULL)
         return -ENOENT;
 
@@ -173,7 +201,8 @@ static int __gitfs_getattr(const char *path, struct stat *stbuf)
         stbuf->st_uid = uid; stbuf->st_gid = gid;
 
     } else if (obj->obj->type == OBJ_BLOB) {
-        stbuf->st_mode = obj->mode & ~0222;
+        if ( obj->mode == S_IFLNK ) stbuf->st_mode = S_IFLNK | 0777;
+        else stbuf->st_mode = obj->mode & ~0222;
         stbuf->st_nlink = 1;
 
         stbuf->st_atime = stbuf->st_ctime = stbuf->st_mtime = obj->date;
@@ -193,12 +222,27 @@ static int __gitfs_getattr(const char *path, struct stat *stbuf)
 
 static int __gitfs_readlink(const char *path, char *buf, size_t size)
 {
-    unsigned long len;
+    if ( strncmp(path, "/_", 2) == 0 ) {
+        int n = levels(path+2);
+        const char *ref = path + 2;
+        const char *end = strrchr(ref, '/'); if (end == NULL) return -ENOENT;
 
+        if ( *(path+2) == '/' ) assert ( end == ref );
+        end++;
+        if ( size < strlen(end) + 3 * n + 1 ) return -ENOENT;
+
+        while ( n > 0 ) { *buf++ = '.'; *buf++ = '.'; *buf++ = '/'; n--; }
+        if ( *(path+2) == '/' ) *buf++ = '_';
+        while ( *buf++ = *end++ ) ;
+
+        return 0;
+    }
+
+    unsigned long len;
     struct __gitfs_object *obj = __gitfs(path);
     if (!obj)
         return -ENOENT;
-    
+
     enum object_type type;
     void *data = read_sha1_file(obj->obj->sha1, &type, &len);
 
@@ -278,8 +322,7 @@ static int __gitfs_listxattr(const char *path, char *list, size_t size)
 
     if (size == 0) return len;
 
-    if ( strcmp(path, "/") == 0 ||
-        (strncmp(path, "/_", 2) == 0 && strrchr(path, '/') == path) ) {
+    if ( strcmp(path, "/") == 0 || strncmp(path, "/_", 2) == 0  ) {
         list[0] = '\0';
         return 1;
     } else {
@@ -298,8 +341,7 @@ static int __gitfs_getxattr(const char *path, const char *name, char *value, siz
     unsigned long len = 41;
     if (size == 0) return len;
 
-    if (strcmp(path, "/") == 0) return 0;
-    if (strncmp(path, "/_", 2) == 0 && strrchr(path, '/') == path) return 0;
+    if ( strcmp(path, "/") == 0 || strncmp(path, "/_", 2) == 0 ) return 0;
 
     struct __gitfs_object *obj = __gitfs(path);
     if (!obj) return -ENOENT;
@@ -340,8 +382,8 @@ static int show_ref(const char *refname, const unsigned char *sha1, int flag, vo
 {
     struct __gitfs_readdir_ctx *ctx = context;
 
-    char name[strlen(refname) + 2]; name[0] = '_';
-    const char *p; p = refname; int i = 1;
+    char name[strlen(refname) + 1]; int i = 0;
+    const char *p; p = refname;
     while (*p) {
         if ( *p == '/' ) name[i++] = ':'; else name[i++] = *p;
         p++;
@@ -349,7 +391,6 @@ static int show_ref(const char *refname, const unsigned char *sha1, int flag, vo
     name[i] = '\0';
 
     (*ctx->filler) (ctx->buf, name, NULL, 0);
-    p = name; p++; (*ctx->filler) (ctx->buf, p, NULL, 0);
 
     return 0;
 }
@@ -391,12 +432,12 @@ static int __gitfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler, 
 {
     struct __gitfs_readdir_ctx ctx = { buf, filler };
 
-    if (strcmp(path, "/") == 0) {
+    if ( strcmp(path, "/") == 0 || strcmp(path, "/_") == 0 ) {
         filler(buf, ".", NULL, 0);
         filler(buf, "..", NULL, 0);
 
+        if (strcmp(path, "/") == 0) filler(buf, "_", NULL, 0);
         filler(buf, "HEAD", NULL, 0);
-        filler(buf, "_HEAD", NULL, 0);
         // for_each_ref(show_ref, &ctx);
         for_each_tag_ref(show_ref, &ctx);
         for_each_branch_ref(show_ref, &ctx);
@@ -406,12 +447,13 @@ static int __gitfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler, 
         return 0;
     }
 
-    if (strncmp(path, "/_", 2) == 0 && strrchr(path, '/') == path) {
+    if (strncmp(path, "/_", 2) == 0) {
         filler(buf, ".", NULL, 0);
         filler(buf, "..", NULL, 0);
 
+        const char *ref = (*(path+2) == '/') ? path + 3 : path + 2;
         struct rev_info revs;
-        if ( rev_list_all(&revs, path+2) == 0 )
+        if ( rev_list_all(&revs, ref) == 0 )
             traverse_commit_list(&revs, show_commit, NULL, &ctx);
 
         return 0;

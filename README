@@ -2,37 +2,43 @@ Git as a filesystem: gitfs
 ==========================
 
 After mounting your git repository,
-but before unmounting it :),
+but before unmounting it `:)`,
 you can browse it in parallel
 on several terminals, or file browsers,
 going to the mount point, be it `/mnt/fuse`.
 
-Then, in `/mnt/fuse/` you will find a dir listing with
-HEAD, all the branches, and all the tags in the repo.
-And under each `/mnt/fuse/commit-ish/`,
+Then, gitfs will accept any path
+`/mnt/fuse/commit-ish/tree/blob`
+to refer to the file `tree/blob`
+as it was when `commit-ish` was committed.
+
+The `commit-ish` part of the path can take any of two forms:
+
+- Naked it refers to one revision, or commit.
+- Prefixed with an underline character, '`_`',
+  it refers to a range of revisions, or commits.
+
+The concept of revision is explained in
+[man gitrevisions](https://www.kernel.org/pub/software/scm/git/docs/gitrevisions.html).
+
+The special path `/mnt/fuse/` contains a dir listing with
+HEAD, all the branches, and all the tags in the repo,
+plus a special dir named '`_`'.
+
+Under each `/mnt/fuse/commit-ish/`,
 in adition to the the commit tree,
-the current dir (`.`), and its file system parent (`..`),
-you will also find
+the current dir '`.`', and its file system parent '`..`',
+there is also
 one entry for each of the git parents of the commit,
-as a `^` if it has only one, or
-as `^1`, `^2`, and so on, if it has more than one.
+as a '`^`' if it has only one, or
+as '`^1`', '`^2`', and so on, if it has more than one.
 
-To allow an easy navigation,
-a path as `/mnt/fuse/master/~3/^2/pathto/glob` is
-treated as `/mnt/fuse/master~3^2/pathto/glob`,
-so you can go, for example, from `/mnt/fuse/HEAD` to its git grandparent
-just doing twice `cd ^`, or once `cd ^^` (or `cd ^/^` or `cd ~2` or ...).
-
-Also, in the `commit-ish` section of path `/mnt/fuse/commit-ish/pathto/glob`,
-every `:` char is converted to char `/` when interfacing with git.
-So path `/mnt/fuse/origin:master/` refers to git `origin/master` remote ref.
-
-In summary, a `commit-ish` is any
-`(refs :)* name (/ [~^] [~^0-9]*)*`,
-and is treated as
-`(refs /)* name ([~^] [~^0-9]*)*`.
-This way you can fully navigate the repository
-from any of its references.
+Special dir `/mnt/fuse/_` contains again a dir listing with
+HEAD, all the branches, and all the tags in the repo.
+But here `/mnt/fuse/_/commit-ish/` points to `/mnt/fuse/_commit-ish/`,
+which is a dir listing with a link
+to each of the commits that are reachable from `commit-ish`,
+that is, to all of its ancestry.
 
 The gitfs filesystem reports two extended attributes:
 
@@ -41,10 +47,31 @@ The gitfs filesystem reports two extended attributes:
 
 The gitfs filesystem is read-only, and
 the date of any object in a commit tree is the date of the commit.
-
 If you need a writable filesystem, please use a
 [unionfs](http://en.wikipedia.org/wiki/UnionFS)
 filesystem on top of the gitfs mount point.
+
+
+Easy navigation
+---------------
+
+Path `/mnt/fuse/_commit-ish/commit-ish2/tree/blob` is treated
+as if it were `/mnt/fuse/commit-ish2/tree/blob`; that is,
+the prefixed `commit-ish` is ignored if anything follows it.
+This way, after a `cd /mnt/fuse/_commit-ish`,
+you can issue a `ls -lat` to see all of its ancestry,
+and then go to any of its ancestors with a simple `cd`.
+
+Also, to allow an easy navigation,
+a path as `/mnt/fuse/master/~3/^2/tree/glob` is
+treated as if it were `/mnt/fuse/master~3^2/tree/glob`,
+so you can go, for example, from `/mnt/fuse/HEAD` to its git grandparent
+just doing twice `cd ^`, or once `cd ^^` (or `cd ^/^` or `cd ~2` or ...).
+
+In the `commit-ish` section of path `/mnt/fuse/commit-ish/tree/glob`,
+every '`:`' char is converted to char '`/`' when interfacing with git.
+This way we can use any _refname_, for example,
+path `/mnt/fuse/origin:master/` refers to git `origin/master` remote ref.
 
 
 Preparing the system
@@ -96,14 +123,14 @@ Just get the sources, and do a make.
 
 <pre>
 user@PCBox:~$ cd /usr/local/src/
-user@PCBox:/usr/local/src$ wget https://github.com/ramoncasares/gitfs/archive/v0.2.tar.gz
-user@PCBox:/usr/local/src$ tar -zxf v0.2.tar.gz
-user@PCBox:/usr/local/src$ cd gitfs-0.2/
-user@PCBox:/usr/local/src/gitfs-0.2$ make
-user@PCBox:/usr/local/src/gitfs-0.2$ cd
+user@PCBox:/usr/local/src$ wget https://github.com/ramoncasares/gitfs/archive/v0.3.tar.gz
+user@PCBox:/usr/local/src$ tar -zxf v0.3.tar.gz
+user@PCBox:/usr/local/src$ cd gitfs-0.3/
+user@PCBox:/usr/local/src/gitfs-0.3$ make
+user@PCBox:/usr/local/src/gitfs-0.3$ cd
 </pre>
 
-The gitfs executable is: `/usr/local/src/gitfs-0.2/gitfs`.
+The gitfs executable is: `/usr/local/src/gitfs-0.3/gitfs`.
 
 
 Mounting a git repo as a filesystem
@@ -142,37 +169,57 @@ in the just created mount point,
 you have to go to the dir where your repo is,
 and call the gitfs executable from there.
 
+
 Example session
 ---------------
 
 <pre>
 user@PCBox:~$ cd git/gitfs/
-user@PCBox:~/git/gitfs$ /usr/local/src/gitfs-0.2/gitfs /mnt/fuse -f &
+user@PCBox:~/git/gitfs$ /usr/local/src/gitfs-0.3/gitfs /mnt/fuse -f &
 user@PCBox:~/git/gitfs$ cd /mnt/fuse
 user@PCBox:/mnt/fuse$ ls -la
 total 4
-dr-xr-xr-x+  2 root root    0 sep  5 19:48 .
-drwxr-xr-x  14 root root 4096 ago 29 18:09 ..
-dr-xr-xr-x+  2 root root    0 sep  1 08:25 github:HEAD
-dr-xr-xr-x+  2 root root    0 sep  1 08:25 github:master
-dr-xr-xr-x+  2 root root    0 jul 20  2009 github:original
-dr-xr-xr-x+  2 root root    0 sep  4  2009 github:temp
-dr-xr-xr-x+  2 root root    0 sep  5 19:38 HEAD
-dr-xr-xr-x+  2 root root    0 sep  5 19:38 master
-dr-xr-xr-x+  2 root root    0 sep  1 08:25 origin:master
-dr-xr-xr-x+  2 root root    0 sep  1 08:25 qratos:master
-dr-xr-xr-x+  2 root root    0 ago 31 10:39 v0.1
-dr-xr-xr-x+  2 root root    0 ago 31 11:39 v0.1.1
-dr-xr-xr-x+  2 root root    0 sep  5 20:45 v0.2
+dr-xr-xr-x+  2 papa papa    0 sep 22 08:58 _
+dr-xr-xr-x+  2 papa papa    0 sep 22 08:58 .
+drwxr-xr-x  15 root root 4096 sep  8 12:25 ..
+dr-xr-xr-x+  2 papa papa    0 sep 13 12:40 github:HEAD
+dr-xr-xr-x+  2 papa papa    0 sep 13 12:40 github:master
+dr-xr-xr-x+  2 papa papa    0 jul 20  2009 github:original
+dr-xr-xr-x+  2 papa papa    0 sep  4  2009 github:temp
+dr-xr-xr-x+  2 papa papa    0 sep 20 14:02 HEAD
+dr-xr-xr-x+  2 papa papa    0 sep 20 14:02 master
+dr-xr-xr-x+  2 papa papa    0 sep 13 12:40 origin:master
+dr-xr-xr-x+  2 papa papa    0 sep 13 12:40 qratos:master
+dr-xr-xr-x+  2 papa papa    0 ago 31 10:39 v0.1
+dr-xr-xr-x+  2 papa papa    0 ago 31 11:39 v0.1.1
+dr-xr-xr-x+  2 papa papa    0 sep  5 20:44 v0.2
+dr-xr-xr-x+  2 user user    0 sep 22 19:15 v0.3
+user@PCBox:/mnt/fuse$ ls -lat _v0.1..v0.2
+total 0
+dr-xr-xr-x+ 2 user user 0 sep 22 08:58 .
+dr-xr-xr-x+ 2 user user 0 sep 22 08:58 ..
+dr-xr-xr-x+ 2 user user 0 sep  5 20:44 1dd9f966f524862cad0332bc9f8311ccad594858
+dr-xr-xr-x+ 2 user user 0 sep  5 20:43 35ab19d4ca6582cf0771fe885003185340a16f79
+dr-xr-xr-x+ 2 user user 0 sep  5 19:38 ca9d9200d0fb21111a98c39239a800c61fb52549
+dr-xr-xr-x+ 2 user user 0 sep  5 19:35 e9cff5696b8e8faa6db81b0429fab8ea3bed8634
+dr-xr-xr-x+ 2 user user 0 sep  5 19:30 51f6f469c05ad8e22f9acda41ca5eef4c02834da
+dr-xr-xr-x+ 2 user user 0 sep  5 10:15 13c89550710450ebb12b4596379d4bbac38f20e3
+dr-xr-xr-x+ 2 user user 0 sep  5 10:15 300b4ed1ed50dfa6b33680e3d67c95a482889af4
+dr-xr-xr-x+ 2 user user 0 sep  1 08:25 2bc1070e20affa7f7abdeeb1dab870b66c2c00b2
+dr-xr-xr-x+ 2 user user 0 ago 31 13:50 9b8c9aa7a6c46190065869c0b21a977c9f55d62f
+dr-xr-xr-x+ 2 user user 0 ago 31 11:39 06ddc7ed0703abc10bba1feaac24ed1e2a976009
+dr-xr-xr-x+ 2 user user 0 ago 31 11:16 34b0cf85cef42d6e25a10b5c6419cfe836746586
+dr-xr-xr-x+ 2 user user 0 ago 31 11:04 be7dc5afdf2ddc02ca16233e074e7a355660612e
+dr-xr-xr-x+ 2 user user 0 ago 31 11:02 2cb26610bd5b384a23a3ac0b52cf37c53193ea5b
 user@PCBox:/mnt/fuse$ cd v0.1
 user@PCBox:/mnt/fuse/v0.1$ ls -la
 total 0
-dr-xr-xr-x+ 2 root root    0 ago 29 20:10 ^
-dr-xr-xr-x+ 2 root root    0 ago 31 10:39 .
-dr-xr-xr-x+ 2 root root    0 sep  5 19:48 ..
--r--r--r--+ 1 root root 9093 ago 31 10:39 main.c
--r--r--r--+ 1 root root  430 ago 31 10:39 Makefile
--r--r--r--+ 1 root root 5192 ago 31 10:39 README
+dr-xr-xr-x+ 2 user user    0 ago 29 20:10 ^
+dr-xr-xr-x+ 2 user user    0 ago 31 10:39 .
+dr-xr-xr-x+ 2 user user    0 sep 22 08:58 ..
+-r--r--r--+ 1 user user 9093 ago 31 10:39 main.c
+-r--r--r--+ 1 user user  430 ago 31 10:39 Makefile
+-r--r--r--+ 1 user user 5192 ago 31 10:39 README
 user@PCBox:/mnt/fuse/v0.1$ cd ^
 user@PCBox:/mnt/fuse/v0.1/^$ ls
 total 0
